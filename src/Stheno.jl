@@ -72,4 +72,7 @@ module Stheno
 
     # Various stuff for convenience.
     include(joinpath("util", "model.jl"))
+
+    # Integration with other packages.
+    include(joinpath("integration", "turing.jl"))
 end # module

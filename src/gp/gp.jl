@@ -1,7 +1,9 @@
 export GP, mean, kernel
 
 # A collection of GPs (GPC == "GP Collection"). Used to keep track of internals.
-mutable struct GPC
+abstract type AbstractGPC end
+
+mutable struct GPC <: AbstractGPC
     n::Int
     GPC() = new(0)
 end
@@ -12,25 +14,33 @@ end
     GP{Tμ<:MeanFunction, Tk<:CrossKernel}
 
 A Gaussian Process (GP) object. Either constructed using an Affine Transformation of
-existing GPs or by providing a mean function `μ`, a kernel `k`, and a `GPC` `gpc`.
+existing GPs or by providing a mean function `μ`, a kernel `k`, and an `AbstractGPC` `gpc`.
 """
-struct GP{Tμ<:MeanFunction, Tk<:CrossKernel}
+struct GP{Tμ<:MeanFunction, Tk<:CrossKernel, TGPC<:AbstractGPC}
     args::Any
     μ::Tμ
     k::Tk
     n::Int
-    gpc::GPC
-    function GP{Tμ, Tk}(args, μ::Tμ, k::Tk, gpc::GPC) where {Tμ, Tk<:CrossKernel}
-        gp = new{Tμ, Tk}(args, μ, k, Zygote.dropgrad(gpc.n), Zygote.dropgrad(gpc))
+    gpc::TGPC
+    function GP{Tμ, Tk, TGPC}(
+        args, μ::Tμ, k::Tk, gpc::TGPC,
+    ) where {Tμ, Tk<:CrossKernel, TGPC<:AbstractGPC}
+        gp = new{Tμ, Tk, TGPC}(args, μ, k, Zygote.dropgrad(gpc.n), Zygote.dropgrad(gpc))
         gpc.n += 1
         return gp
     end
-    GP{Tμ, Tk}(μ::Tμ, k::Tk, gpc::GPC) where {Tμ, Tk} = GP{Tμ, Tk}((), μ, k, gpc)
+    function GP{Tμ, Tk, TGPC}(μ::Tμ, k::Tk, gpc::TGPC) where {Tμ, Tk, TGPC}
+        return GP{Tμ, Tk, TGPC}((), μ, k, gpc)
+    end
 end
-GP(μ::Tμ, k::Tk, gpc::GPC) where {Tμ<:MeanFunction, Tk<:CrossKernel} = GP{Tμ, Tk}(μ, k, gpc)
+function GP(
+    μ::Tμ, k::Tk, gpc::TGPC
+) where {Tμ<:MeanFunction, Tk<:CrossKernel, TGPC<:AbstractGPC}
+    return GP{Tμ, Tk, TGPC}(μ, k, gpc)
+end
 
 # GP initialised with a constant mean. Zero and one are specially handled.
-function GP(m::Real, k::CrossKernel, gpc::GPC)
+function GP(m::Real, k::CrossKernel, gpc::AbstractGPC)
     if iszero(m)
         return GP(k, gpc)
     elseif isone(m)
@@ -39,11 +49,11 @@ function GP(m::Real, k::CrossKernel, gpc::GPC)
         return GP(ConstMean(m), k, gpc)
     end
 end
-GP(m, k::CrossKernel, gpc::GPC) = GP(CustomMean(m), k, gpc)
-GP(k::CrossKernel, gpc::GPC) = GP(ZeroMean(), k, gpc)
-function GP(gpc::GPC, args...)
+GP(m, k::CrossKernel, gpc::AbstractGPC) = GP(CustomMean(m), k, gpc)
+GP(k::CrossKernel, gpc::AbstractGPC) = GP(ZeroMean(), k, gpc)
+function GP(gpc::TGPC, args...) where {TGPC <: AbstractGPC}
     μ, k = μ_p′(args...), k_p′(args...)
-    return GP{typeof(μ), typeof(k)}(args, μ, k, gpc)
+    return GP{typeof(μ), typeof(k), TGPC}(args, μ, k, gpc)
 end
 
 mean(f::GP) = f.μ

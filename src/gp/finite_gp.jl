@@ -3,6 +3,8 @@ import Distributions: logpdf, ContinuousMultivariateDistribution
 
 export mean, std, cov, marginals, rand, logpdf, elbo
 
+
+
 """
     FiniteGP{Tf, Tx}
 
@@ -23,12 +25,16 @@ FiniteGP(f::GP, x::AV) = FiniteGP(f, x, 0)
 
 length(f::FiniteGP) = length(f.x)
 
+
+
 """
     mean(f::FiniteGP)
 
 The mean vector of `f`.
 """
 mean(f::FiniteGP) = ew(mean(f.f), f.x)
+
+
 
 """
     cov(f::FiniteGP)
@@ -37,12 +43,16 @@ The covariance matrix of `f`.
 """
 cov(f::FiniteGP) = pairwise(kernel(f.f), f.x) + f.Σy
 
+
+
 """
     cov(f::FiniteGP, g::FiniteGP)
 
 The cross-covariance between `f` and `g`.
 """
 cov(f::FiniteGP, g::FiniteGP) = pairwise(kernel(f.f, g.f), f.x, g.x)
+
+
 
 """
     marginals(f::FiniteGP)
@@ -51,28 +61,40 @@ Sugar, returns a vector of Normal distributions representing the marginals of `f
 """
 marginals(f::FiniteGP) = Normal.(mean(f), sqrt.(ew(kernel(f.f), f.x) .+ diag(f.Σy)))
 
+
+
 """
     rand(rng::AbstractRNG, f::FiniteGP, N::Int=1)
 
 Obtain `N` independent samples from the GP `f` using `rng`.
 """
-function rand(rng::AbstractRNG, f::FiniteGP, N::Int)
-    μ, C = mean(f), cholesky(Symmetric(cov(f)))
-    return μ .+ C.U' * randn(rng, length(μ), N)
-end
+rand(rng::AbstractRNG, f::FiniteGP, N::Int) = _rand(rng, f, N)
 rand(f::FiniteGP, N::Int) = rand(Random.GLOBAL_RNG, f, N)
 rand(rng::AbstractRNG, f::FiniteGP) = vec(rand(rng, f, 1))
 rand(f::FiniteGP) = vec(rand(f, 1))
+
+function _rand(rng::AbstractRNG, f::FiniteGP, N::Int)
+    μ, C = mean(f), cholesky(Symmetric(cov(f)))
+    return μ .+ C.U' * randn(rng, length(μ), N)
+end
+
+_rand(rng::AbstractRNG, f::FiniteGP) = vec(_rand(rng, f, 1))
+
+
 
 """
     logpdf(f::FiniteGP, y::AbstractVector{<:Real})
 
 The log probability density of `y` under `f`.
 """
-function logpdf(f::FiniteGP, y::AbstractVector{<:Real})
+logpdf(f::FiniteGP, y::AbstractVector{<:Real}) = _logpdf(f, y)
+
+function _logpdf(f::FiniteGP, y::AbstractVector{<:Real})
     μ, C = mean(f), cholesky(Symmetric(cov(f)))
     return -(length(y) * log(2π) + logdet(C) + Xt_invA_X(C, y - μ)) / 2
 end
+
+
 
 """
    elbo(f::FiniteGP, y::AbstractVector{<:Real}, u::FiniteGP)
@@ -154,6 +176,8 @@ Zygote.@nograd _test_block_consistency
 
 import Base: |, merge
 export ←, |
+
+
 
 """
     Observation

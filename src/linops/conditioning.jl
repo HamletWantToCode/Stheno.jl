@@ -1,13 +1,27 @@
-function merge(fs::Tuple{Vararg{FiniteGP}})
-    block_gp = cross([map(f->f.f, fs)...])
-    block_x = BlockData([map(f->f.x, fs)...])
-    block_Σy = block_diagonal([map(f->f.Σy, fs)...])
+function merge(fs::Vector{<:FiniteGP})
+    block_gp = cross(map(f->f.f, fs))
+    block_x = BlockData(map(f->f.x, fs))
+    block_Σy = block_diagonal(map(f->f.Σy, fs))
     return FiniteGP(block_gp, block_x, block_Σy)
 end
-function merge(c::Tuple{Vararg{Observation}})
-    block_y = Vector(BlockVector([map(get_y, c)...]))
-    return merge(map(get_f, c))←block_y
+function merge(fs::Vector{<:Observation})
+    block_y = Vector(BlockVector(map(get_y, c)))
+    return merge(map(get_f, c)) ← block_y
 end
+
+merge(fs::Tuple{Vararg{FiniteGP}}) = merge([fs...])
+merge(c::Tuple{Vararg{Observation}}) = merge([c...])
+
+# function merge(fs::Tuple{Vararg{FiniteGP}})
+#     block_gp = cross([map(f->f.f, fs)...])
+#     block_x = BlockData([map(f->f.x, fs)...])
+#     block_Σy = block_diagonal([map(f->f.Σy, fs)...])
+#     return FiniteGP(block_gp, block_x, block_Σy)
+# end
+# function merge(c::Tuple{Vararg{Observation}})
+#     block_y = Vector(BlockVector([map(get_y, c)...]))
+#     return merge(map(get_f, c))←block_y
+# end
 
 """
     |(g::GP, c::Observation)
@@ -41,3 +55,4 @@ end
 
 |(g::Tuple{Vararg{GP}}, c::Observation) = g | (c,)
 
+|(g::GP, c::Vector{<:Observation}) = g | merge(c)
