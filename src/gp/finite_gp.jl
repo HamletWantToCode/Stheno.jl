@@ -70,8 +70,9 @@ Obtain `N` independent samples from the GP `f` using `rng`.
 """
 rand(rng::AbstractRNG, f::FiniteGP, N::Int) = _rand(rng, f, N)
 rand(f::FiniteGP, N::Int) = rand(Random.GLOBAL_RNG, f, N)
+
 rand(rng::AbstractRNG, f::FiniteGP) = vec(rand(rng, f, 1))
-rand(f::FiniteGP) = vec(rand(f, 1))
+rand(f::FiniteGP) = rand(Random.GLOBAL_RNG, f)
 
 function _rand(rng::AbstractRNG, f::FiniteGP, N::Int)
     μ, C = mean(f), cholesky(Symmetric(cov(f)))
@@ -97,7 +98,7 @@ end
 
 
 """
-   elbo(f::FiniteGP, y::AbstractVector{<:Real}, u::FiniteGP)
+    elbo(f::FiniteGP, y::AbstractVector{<:Real}, u::FiniteGP)
 
 The saturated Titsias-ELBO.
 """

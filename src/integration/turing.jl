@@ -1,4 +1,7 @@
-using Turing
+using Turing, Bijectors
+import Bijectors: link, invlink, logpdf_with_trans
+
+
 
 """
     TuringGPC{Tlml<:Real} <: AbstractGPC
@@ -15,6 +18,17 @@ end
 
 # A Turing FiniteGP is just a FiniteGP with a TuringGPC, as opposed to another AbstractGPC.
 const TuringFiniteGP{Tm<:MeanFunction, Tk<:CrossKernel} = FiniteGP{<:GP{Tm, Tk, <:TuringGPC}}
+
+function rand(rng::AbstractRNG, fx::TuringFiniteGP, N::Int)
+    gpc = fx.f.gpc
+    if isempty(gpc.rand_obs)
+        y = _rand(rng, fx, N)
+    else
+        y = _rand(rng, (fx.f | gpc.rand_obs)(fx.x, fx.Σy), N)
+    end
+    gpc.rand_obs = vcat(gpc.rand_obs, fx ← y)
+    return y
+end
 
 function rand(rng::AbstractRNG, fx::TuringFiniteGP)
     gpc = fx.f.gpc
@@ -39,6 +53,29 @@ function logpdf(fx::TuringFiniteGP, y::AbstractVector{<:Real})
 end
 
 
+
+#
+# Define transformations for efficient sampling
+#
+
+function link(fx::TuringFiniteGP, y::AbstractVector{<:Real})
+    return cholesky(cov(fx)).U' \ (y - mean(fx))
+end
+
+function invlink(fx::TuringFiniteGP, ε::AbstractVector{<:Real})
+    return mean(fx) + cholesky(cov(fx)).U' * ε
+end
+
+function logpdf_with_trans(fx::TuringFiniteGP, ε::AbstractVector{<:Real}, transform::Bool)
+    if transform
+        return -(length(ε) * log(2π) + logdet(cholesky(cov(fx))) + sum(abs2, ε)) / 2
+    else
+        return _logpdf(fx, ε)
+    end
+end
+
+
+
 #
 # Ensure that users use the correct type of `AbstractGPC` object.
 #
@@ -60,6 +97,7 @@ function Turing.observe(
 )
     error("GP with `GPC` found, expected GP with `TuringGPC`.")
 end
+
 
 
 #

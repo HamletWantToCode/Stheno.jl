@@ -48,6 +48,8 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 [[Bijectors]]
 deps = ["Distributions", "LinearAlgebra", "MappedArrays", "Reexport", "Requires", "StatsFuns"]
 git-tree-sha1 = "c094885b5280991a01737d4c337d9cb4acc6ae51"
+repo-rev = "master"
+repo-url = "https://github.com/TuringLang/Bijectors.jl.git"
 uuid = "76274a88-744f-5084-9051-94815aaf08c4"
 version = "0.3.0"
 
@@ -506,9 +508,9 @@ uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
 
 [[Showoff]]
 deps = ["Dates"]
-git-tree-sha1 = "03a819b222591508e452ae3ca0333657cf070cbc"
+git-tree-sha1 = "e032c9df551fb23c9f98ae1064de074111b7bc39"
 uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
-version = "0.3.0"
+version = "0.3.1"
 
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
