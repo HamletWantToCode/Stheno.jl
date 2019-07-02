@@ -113,6 +113,7 @@ function logpdf(fs::AV{<:FiniteGP}, ys::Vector{<:AV{<:Real}})
     return logpdf(finites_to_block(fs), vcat(ys...))
 end
 logpdf(fs::Vector{<:Observation}) = logpdf(get_f.(fs), get_y.(fs))
+logpdf(fs::Observation...) = logpdf([fs...])
 
 
 #

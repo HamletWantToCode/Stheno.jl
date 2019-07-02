@@ -21,7 +21,7 @@ function rand(rng::AbstractRNG, fx::TuringFiniteGP)
     if isempty(gpc.rand_obs)
         y = _rand(rng, fx)
     else
-        y = _rand(rng, (fx.f | gpc.rand_obs)(fx.x, fx.Σ))
+        y = _rand(rng, (fx.f | gpc.rand_obs)(fx.x, fx.Σy))
     end
     gpc.rand_obs = vcat(gpc.rand_obs, fx ← y)
     return y
@@ -32,7 +32,7 @@ function logpdf(fx::TuringFiniteGP, y::AbstractVector{<:Real})
     if isempty(gpc.logp_obs)
         l = _logpdf(fx, y)
     else
-        l = _logpdf((fx.f | gpc.logp_obs)(fx.x, fx.Σ), y)
+        l = _logpdf((fx.f | gpc.logp_obs)(fx.x, fx.Σy), y)
     end
     gpc.logp_obs = vcat(gpc.logp_obs, fx ← y)
     return l

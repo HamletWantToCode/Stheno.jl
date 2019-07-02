@@ -32,8 +32,8 @@ include("test_util.jl")
     end
 
     @testset "gp" begin
-        include(joinpath("gp", "gp.jl"))
-        include(joinpath("gp", "finite_gp.jl"))
+        # include(joinpath("gp", "gp.jl"))
+        # include(joinpath("gp", "finite_gp.jl"))
     end
 
     @testset "linops" begin

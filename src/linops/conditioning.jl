@@ -4,7 +4,7 @@ function merge(fs::Vector{<:FiniteGP})
     block_Σy = block_diagonal(map(f->f.Σy, fs))
     return FiniteGP(block_gp, block_x, block_Σy)
 end
-function merge(fs::Vector{<:Observation})
+function merge(c::Vector{<:Observation})
     block_y = Vector(BlockVector(map(get_y, c)))
     return merge(map(get_f, c)) ← block_y
 end
