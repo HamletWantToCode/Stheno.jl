@@ -86,45 +86,11 @@ function cross_kernel(model, fa::Val{Na}, fb::Val{Nb}, ::Val, ::Val) where {Na, 
     end
 end
 
-# Fallback method to prevent process from different programmes interacting incorrectly
-
-# abstract type AbstractGP{Tmodel, Tindex} end
-
-# kernel(fa::AbstractGP{Tm}, fb::AbstractGP{Tm}) = kernel(fa.model, fa, fb)
-
-# # A Gaussian process whose mean and kernel are known.
-# struct PrimitiveGP{Tmodel, Tindex, Tm, Tk} <: AbstractGP{Tmodel, Tindex}
-#     model::Tmodel
-#     index::Tindex
-#     m::Tm
-#     k::Tk
-# end
-
-# mean(f::PrimitiveGP) = f.m
-# kernel(f::PrimitiveGP) = f.k
-# kernel(fa::PrimitiveGP{Tm}, fb::PrimitiveGP{Tm}) where {Tm} = ZeroKernel()
-
-
-# # A Gaussian process whose mean and kernel are specified in terms of other GPs.
-# struct DerivedGP{Tmodel, Tindex, Targs} <: AbstractGP{Tmodel, Tindex}
-#     model::Tmodel
-#     index::Tindex
-# end
-
-# mean(f::DerivedGP) = DerivedMean(f.model, f.args)
-# kernel(f::DerivedGP) = DerivedKernel(f.model, f.args)
-
-
-
 
 
 #
 # A dummy model that will eventually be generated automatically from an input programme
 #
-
-# dummy_model(::Val{1}) = PrimitiveGP(dummy_model, Val(1), ZeroMean(), EQ())
-# dummy_model(::Val{2}) = PrimitiveGP(dummy_model, Val(2), OneMean(), EQ())
-# dummy_model(::Val{3}) = DerivedGP(dummy_model, Val(3), (+, Val(1), Val(2)))
 
 dummy_model(::Val{N}) where {N} = GP(dummy_model, Val(N))
 
@@ -132,15 +98,18 @@ args(::typeof(dummy_model), ::Val{1}) = (ZeroMean(), EQ())
 args(::typeof(dummy_model), ::Val{2}) = (OneMean(), EQ())
 args(::typeof(dummy_model), ::Val{3}) = (+, Val(1), Val(2))
 
-args(f::GP) = args(f.model, f.index)
+
 
 is_primitive(::typeof(dummy_model), ::Val{1}) = Val(true)
 is_primitive(::typeof(dummy_model), ::Val{2}) = Val(true)
 is_primitive(::typeof(dummy_model), ::Val{3}) = Val(false)
 
+args(f::GP) = args(f.model, f.index)
+is_primitive(f::GP) = is_primitive(f.model, f.index)
 
-# mean(::typeof(dummy_model), f::Val) = mean(dummy_model(f))
-# kernel(::typeof(dummy_model), f::Val) = kernel(dummy_model(f))
+#
+# Test stuff out
+#
 
 # Get processes
 f1 = dummy_model(Val(1))
@@ -188,5 +157,118 @@ kernel(f3, f2)
 kernel(f3, f3)
 
 # need another derived process to complete this.
+
+#
+# A static model, from which we derive stuff automatically
+#
+
+@static_model function foo(θ)
+    f1 = GP(m1(θ), k1(θ))
+    f2 = GP(m2(θ), k2(θ))
+    f3 = +(f1, f2)
+end
+
+# becomes
+
+struct StaticModel{Tmodel, Targs}
+    model::Tmodel
+    args::Targs
+end
+
+foo(args...) = StaticModel(foo, args)
+
+(s::StaticModel{typeof(foo)})(::Val{N}) where {N} = GP(foo, Val(N))
+
+function args(s::StaticModel{typeof(foo)}, ::Val{1})
+    θ, = args
+    return m1(θ), k1(θ)
+end
+
+function args(s::StaticModel{typeof(foo)}, ::Val{2})
+    θ, = args
+    return m2(θ), k2(θ)
+end
+
+function args(s::StaticModel{typeof(foo)}, ::Val{3})
+    θ, = args
+    return (+, Val(:f1), Val(:f2))
+    # Need to assume unique naming on the left for this to work :(
+end
+
+# Functions mapping from symbolic names to Val-names.
+_map_name(::Val{:f1}) = Val(1)
+_map_name(::Val{:f2}) = Val(2)
+_map_name(::Val{:f3}) = Val(3)
+
+
+#
+# Some operations on the resulting process
+#
+
+using MacroTools
+
+macro static_model(code)
+
+    # Define StaticModel constructor for the model in code
+    code_dict = copy(splitdef(code))
+    static_model_dict = copy(code_dict)
+    static_model_dict[:body] = Expr(
+        :call,
+        :StaticModel,
+        code_dict[:name],
+        Expr(:tuple, namify.(code_dict[:args])...),
+    )
+
+    # Define GP generator
+    name = code_dict[:name]
+    gp_gen = :((s::StaticModel{typeof($name)})(::Val{N}) where {N} = GP($name, Val(N)))
+
+    # Define name maps
+    lines = rmlines(code_dict[:body]).args
+    process_names = [first(line.args) for line in lines]
+    gen_name_map(n) = :(_map_name(::typeof($name), ::Val{$(process_names[n])}) = Val($n))
+    name_maps = gen_name_map.(eachindex(lines))
+
+    # Define is_primtive
+    gen_is_primitive(n, bool) = :(is_primitive(::typeof($name), ::Val($n)) = Val($bool))
+    is_gp(line) = line.args[2].args[1] == :GP
+    is_primitives = map(is_gp, lines)
+    is_primitive_exprs = gen_is_primitive.(eachindex(lines), is_primitives)
+
+    # Define args
+    # MODIFY THIS CODE TO REPLACE THE ARGUMENTS WITH THE VAL-ED VERSIONS.
+    static_model_name = gensym("static_model")
+    function gen_args_expr(n)
+
+        # Produce first line
+        args_lhs = Expr(:tuple, namify.(code_dict[:args])...)
+        args_rhs = :($static_model_name.args)
+        first_line = Expr(:(=), args_lhs, args_rhs)
+
+        # Produce second line
+        
+
+        return nothing
+    end
+    args_exprs = gen_args_expr.(eachindex(lines))
+
+    return esc(:nothing)
+end
+
+@static_model function bar(θ, b::T, c::A) where {T, A}
+    f1 = GP(m1(θ), k1(θ))
+    f2 = GP(m2(θ), k2(θ))
+    f3 = +(f1, f2)
+end
+
+model = foo(θ)
+
+
+
+
+
+
+
+
 
 
