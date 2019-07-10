@@ -55,4 +55,10 @@ end
 
 |(g::Tuple{Vararg{GP}}, c::Observation) = g | (c,)
 
-|(g::GP, c::Vector{<:Observation}) = g | merge(c)
+function |(g::GP, c::Vector{<:Observation})
+    if length(c) == 1
+        return g | first(c)
+    else
+        return g | merge(c)
+    end
+end

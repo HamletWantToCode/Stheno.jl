@@ -59,19 +59,32 @@ end
 #
 
 function link(fx::TuringFiniteGP, y::AbstractVector{<:Real})
-    return cholesky(cov(fx)).U' \ (y - mean(fx))
+    return cholesky(cov(fx) + 0.0 * I).U' \ (y - mean(fx))
 end
 
 function invlink(fx::TuringFiniteGP, ε::AbstractVector{<:Real})
-    return mean(fx) + cholesky(cov(fx)).U' * ε
+    return mean(fx) + cholesky(cov(fx) + 0.0 * I).U' * ε
 end
 
-function logpdf_with_trans(fx::TuringFiniteGP, ε::AbstractVector{<:Real}, transform::Bool)
+function _logpdf_with_trans(fx::TuringFiniteGP, ε::AbstractVector{<:Real}, transform::Bool)
     if transform
-        return -(length(ε) * log(2π) + logdet(cholesky(cov(fx))) + sum(abs2, ε)) / 2
+        Σ = cov(fx)
+        C = cholesky(Σ)
+        return -(length(ε) * log(2π) + logdet(C) + sum(abs2, ε)) / 2
     else
         return _logpdf(fx, ε)
     end
+end
+
+function logpdf_with_trans(fx::TuringFiniteGP, ε::AbstractVector{<:Real}, transform::Bool)
+    gpc = fx.f.gpc
+    if isempty(gpc.logp_obs)
+        l = _logpdf_with_trans(fx, ε, transform)
+    else
+        l = _logpdf_with_trans((fx.f | gpc.logp_obs)(fx.x, fx.Σy), ε, transform)
+    end
+    gpc.logp_obs = vcat(gpc.logp_obs, fx ← invlink(fx, ε))
+    return l
 end
 
 

@@ -185,7 +185,7 @@ export ←, |
 
 Represents fixing a paricular (finite) GP to have a particular (vector) value.
 """
-struct Observation{Tf<:FiniteGP, Ty<:Vector}
+struct Observation{Tf<:FiniteGP, Ty<:AbstractVector{<:Real}}
     f::Tf
     y::Ty
 end

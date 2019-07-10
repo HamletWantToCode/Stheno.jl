@@ -9,7 +9,7 @@ struct CondCache{TC<:Cholesky, Tα<:AbstractVector{<:Real}, Tx<:AbstractVector}
     α::Tα
     x::Tx
 end
-function CondCache(k::Kernel, m::MeanFunction, x::AV, y::Vector{<:Real}, Σy::AM{<:Real})
+function CondCache(k::Kernel, m::MeanFunction, x::AV, y::AbstractVector{<:Real}, Σy::AM{<:Real})
     C = cholesky(Symmetric(pw(k, x) + Σy))
     return CondCache(C, C \ (y - ew(m, x)), x)
 end
