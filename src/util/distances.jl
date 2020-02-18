@@ -28,3 +28,9 @@ end
         return (nothing, first(back(Δ)))
     end
 end
+
+using CuArrays
+
+function pw(::SqEuclidean, X::CuArray, Y::CuArray)
+    return sum(X.^2; dims=1)' .+ sum(Y.^2; dims=1) .- 2 .* X'Y
+end
